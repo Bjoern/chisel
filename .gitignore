@@ -1,6 +1,6 @@
 .bundle
 db/*.sqlite3
-
+tmp
 target
 .classpath
 .settings

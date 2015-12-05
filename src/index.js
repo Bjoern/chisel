@@ -7,6 +7,14 @@ var Joi = require('joi');
 var server = new Hapi.Server();
 server.connection({ port: 3000 });
 
+var genCount = 0;
+
+function makeReply(reply){
+  return function(err, stream){
+    reply(stream).type('application/pdf');
+  }
+}
+
 server.route({
     method: 'POST',
     path: '/generate',
@@ -26,24 +34,11 @@ server.route({
       console.log('template: '+request.payload.template);
       console.log('items: '+request.payload.data.items);
   
-      queueJob(request.payload.template, request.payload.data, function(err, stream){
-         reply(stream).type('application/pdf');
-       });
-/*
-      var template = compileTemplate(request.payload.template);    
-
-      var html = template(request.payload.data);
-
-      //console.log(html);
-
-      var options = { format: 'A4' };
-
-      Pdf.create(html, options).toStream(function(err, stream){
-          reply(stream).type('application/pdf');
-        });
-*/
+      queueJob(request.payload.template, request.payload.data, makeReply(reply));
     }
 });
+
+
 
 server.register(require('inert'), function (err) {
     if (err) {
@@ -72,24 +67,45 @@ var queue = [];
 var workers = 0;//active workers
 
 function queueJob(template, data, callback){
+
+  genCount++;
+
+  console.log("queue job "+genCount+", length: "+queue.length+", workers: "+workers);
   queue.push({
       template: template,
       data: data,
-      callback: callback
+      callback: callback,
+      genCount: genCount
     });
 
   processQueue();
 }
 
 
-function jobFinished(){
-  workers--;
-  processQueue();
+function jobFinished(genCount){
+  return function(){
+    console.log("** job finished: "+genCount);
+    workers--;
+    processQueue();
+  };
 }
 
+function makePDFGenCallback(nextJob){
+  return function(err, stream){
+    stream.on('end', jobFinished(nextJob.genCount));
+    nextJob.callback(err, stream);
+  }
+}
+
+
 function processQueue(){
+  console.log("process queue");
+
   if(workers < MAX_WORKERS && queue.length > 0){
+
     nextJob = queue.shift();
+
+    console.log("** process request "+nextJob.genCount);
 
     workers++;
 
@@ -99,11 +115,10 @@ function processQueue(){
 
     var options = { format: 'A4' };
 
-    Pdf.create(html, options).toStream(function(err, stream){
-        stream.on('end', jobFinished);
-        nextJob.callback(err, stream);
-      });
-  } 
+    Pdf.create(html, options).toStream(makePDFGenCallback(nextJob));
+  } else {
+    console.log("nothing to do or waiting for another worker to finish, length: "+queue.length+", workers: "+workers);
+  }
 }
 
 function compileTemplate(templateName){
