@@ -1,0 +1,7 @@
+{
+  template: "test.html",
+  data: {
+    title: "Mauer Streichen",
+    description: "Bräuchte mal eben 1000 Leute um die Mauer zu streichen"
+  }
+}
