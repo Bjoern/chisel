@@ -1,7 +1,9 @@
 {
-  template: "test.html",
+  template: "coupon-master-template.html",
   data: {
-    title: "Mauer Streichen",
-    description: "Bräuchte mal eben 1000 Leute um die Mauer zu streichen"
+    items: [
+      {code: "1234"},
+      {code: "5678"}
+    ]
   }
 }

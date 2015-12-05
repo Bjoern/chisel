@@ -11,22 +11,52 @@ server.route({
     method: 'POST',
     path: '/generate',
     config: {
-      validate: {
+      /*validate: {
         payload: Joi.object({
-            template: Joi.string(),
-            title: Joi.string(),
-            description: Joi.string()
+            template: Joi.string().required()
+            //items: Joi.array().required()
           }).without('password', 'accessToken')
-      }
+      }*/
 
     },
 
     handler: function (request, reply) {
       console.log("payload: "+request.payload);
-      //var payload = JSON.parse(request.payload);
-      cosole.log('template: '+request.payload.template);
-      reply('Hello, world!');
+      console.log("generate pdf");
+      console.log('template: '+request.payload.template);
+      console.log('items: '+request.payload.data.items);
+  
+      var template = compileTemplate(request.payload.template);    
+
+      var html = template(request.payload.data);
+
+      //console.log(html);
+
+      var options = { format: 'A4' };
+
+      Pdf.create(html, options).toStream(function(err, stream){
+          reply(stream).type('application/pdf');
+        });
     }
+});
+
+server.register(require('inert'), function (err) {
+    if (err) {
+        throw err;
+    }
+
+    server.route({
+        method: 'GET',
+        path: '/{param*}',
+        handler: {
+          directory: {
+            path: 'public',
+            index: true
+          }
+        }
+      });
+
+
 });
 
 server.start(function () {
@@ -35,18 +65,22 @@ server.start(function () {
 
 function compileTemplate(templateName){
   var file = fs.readFileSync('templates/'+templateName, {encoding: 'utf8'});
-  console.log("file: "+file);
   return Handlebars.compile(file);
 }
-
-var template = compileTemplate('test.html');// Handlebars.compile("Hello {{name}}");
-var data = {name: "Consumer"};
+/*
+var template = compileTemplate('coupon-master-template.html');
+var data = {
+    items: [
+      {code: "1234"},
+      {code: "5678"}
+    ]
+  };
 
 var html = template(data);
 
 var options = { format: 'A4' };
- 
-Pdf.create(html, options).toFile('./hello.pdf', function(err, res) {
+ */
+/*Pdf.create(html, options).toFile('./hello.pdf', function(err, res) {
   if (err) return console.log(err);
   console.log(res);
-});
+});*/
