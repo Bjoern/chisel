@@ -3,7 +3,19 @@ console.log("starting test.js");
 
 $(function(){
     function success(data){
+      console.log("data received");
+
       console.dir(data);
+
+      //create download link
+
+     // var encodedData = window.btoa(data);
+
+      //$('#download').attr('href', 'data:application/pdf;base64,'+encodedData);
+
+      //$('#download').removeClass('hidden');
+
+      //console.dir(data);
     }
 
     function clickit(){

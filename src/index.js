@@ -26,6 +26,10 @@ server.route({
       console.log('template: '+request.payload.template);
       console.log('items: '+request.payload.data.items);
   
+      queueJob(request.payload.template, request.payload.data, function(err, stream){
+         reply(stream).type('application/pdf');
+       });
+/*
       var template = compileTemplate(request.payload.template);    
 
       var html = template(request.payload.data);
@@ -37,6 +41,7 @@ server.route({
       Pdf.create(html, options).toStream(function(err, stream){
           reply(stream).type('application/pdf');
         });
+*/
     }
 });
 
@@ -55,32 +60,53 @@ server.register(require('inert'), function (err) {
           }
         }
       });
-
-
 });
 
 server.start(function () {
     console.log('Server running at:', server.info.uri);
 });
 
+var MAX_WORKERS = 4;//max pdfs creation triggers at a time
+
+var queue = [];
+var workers = 0;//active workers
+
+function queueJob(template, data, callback){
+  queue.push({
+      template: template,
+      data: data,
+      callback: callback
+    });
+
+  processQueue();
+}
+
+
+function jobFinished(){
+  workers--;
+  processQueue();
+}
+
+function processQueue(){
+  if(workers < MAX_WORKERS && queue.length > 0){
+    nextJob = queue.shift();
+
+    workers++;
+
+    var template = compileTemplate(nextJob.template);    
+
+    var html = template(nextJob.data);
+
+    var options = { format: 'A4' };
+
+    Pdf.create(html, options).toStream(function(err, stream){
+        stream.on('end', jobFinished);
+        nextJob.callback(err, stream);
+      });
+  } 
+}
+
 function compileTemplate(templateName){
   var file = fs.readFileSync('templates/'+templateName, {encoding: 'utf8'});
   return Handlebars.compile(file);
 }
-/*
-var template = compileTemplate('coupon-master-template.html');
-var data = {
-    items: [
-      {code: "1234"},
-      {code: "5678"}
-    ]
-  };
-
-var html = template(data);
-
-var options = { format: 'A4' };
- */
-/*Pdf.create(html, options).toFile('./hello.pdf', function(err, res) {
-  if (err) return console.log(err);
-  console.log(res);
-});*/
